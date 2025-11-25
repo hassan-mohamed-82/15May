@@ -8,8 +8,8 @@ exports.signupSchema = zod_1.z.object({
         name: zod_1.z.string().min(2, "name must be at least 2 characters long"),
         phoneNumber: zod_1.z.string(),
         role: zod_1.z.enum(["member", "guest"]),
-        email: zod_1.z.string().email("Invalid email"),
-        password: zod_1.z.string().min(8, "Password must be at least 8 characters"),
+        email: zod_1.z.string().email("البريد الإلكتروني غير صالح"),
+        password: zod_1.z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
         dateOfBirth: zod_1.z.string(),
         purpose: zod_1.z.string().optional(),
         cardId: zod_1.z.string().optional(),
@@ -45,24 +45,24 @@ exports.loginSchema = zod_1.z.object({
 exports.verifyEmailSchema = zod_1.z.object({
     body: zod_1.z.object({
         userId: zod_1.z.string(),
-        code: zod_1.z.string().length(6, "Verification code must be 6 characters long"),
+        code: zod_1.z.string().length(6, "الرمز المرسل يجب أن يكون 6 حروف"),
     }),
 });
 exports.sendResetCodeSchema = zod_1.z.object({
     body: zod_1.z.object({
-        email: zod_1.z.string().email("Invalid email"),
+        email: zod_1.z.string().email("البريد الإلكتروني غير صالح"),
     }),
 });
 exports.checkResetCodeSchema = zod_1.z.object({
     body: zod_1.z.object({
-        email: zod_1.z.string().email("Invalid email"),
-        code: zod_1.z.string().length(6, "Reset code must be 6 characters long"),
+        email: zod_1.z.string().email("البريد الإلكتروني غير صالح"),
+        code: zod_1.z.string().length(6, "الرمز المرسل يجب أن يكون 6 حروف "),
     }),
 });
 exports.resetPasswordSchema = zod_1.z.object({
     body: zod_1.z.object({
-        email: zod_1.z.string().email("Invalid email"),
-        code: zod_1.z.string().length(6, "Reset code must be 6 characters long"),
-        newPassword: zod_1.z.string().min(8),
+        email: zod_1.z.string().email("البريد الإلكتروني غير صالح"),
+        code: zod_1.z.string().length(6, "الرمز المرسل يجب أن يكون 6 حروف"),
+        newPassword: zod_1.z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
     }),
 });

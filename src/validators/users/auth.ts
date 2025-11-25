@@ -6,8 +6,8 @@ export const signupSchema = z.object({
       name: z.string().min(2, "name must be at least 2 characters long"),
       phoneNumber: z.string(),
       role: z.enum(["member", "guest"]),
-      email: z.string().email("Invalid email"),
-      password: z.string().min(8, "Password must be at least 8 characters"),
+      email: z.string().email("البريد الإلكتروني غير صالح"),
+      password: z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
       dateOfBirth: z.string(),
       purpose: z.string().optional(),
       cardId:z.string().optional(),
@@ -46,27 +46,27 @@ export const loginSchema = z.object({
 export const verifyEmailSchema = z.object({
   body: z.object({
     userId: z.string(),
-    code: z.string().length(6, "Verification code must be 6 characters long"),
+    code: z.string().length(6, "الرمز المرسل يجب أن يكون 6 حروف"),
   }),
 });
 
 export const sendResetCodeSchema = z.object({
   body: z.object({
-    email: z.string().email("Invalid email"),
+    email: z.string().email("البريد الإلكتروني غير صالح"),
   }),
 });
 
 export const checkResetCodeSchema = z.object({
   body: z.object({
-    email: z.string().email("Invalid email"),
-    code: z.string().length(6, "Reset code must be 6 characters long"),
+    email: z.string().email("البريد الإلكتروني غير صالح"),
+    code: z.string().length(6, "الرمز المرسل يجب أن يكون 6 حروف "),
   }),
 });
 
 export const resetPasswordSchema = z.object({
   body: z.object({
-    email: z.string().email("Invalid email"),
-    code: z.string().length(6, "Reset code must be 6 characters long"),
-    newPassword: z.string().min(8),
+    email: z.string().email("البريد الإلكتروني غير صالح"),
+    code: z.string().length(6, "الرمز المرسل يجب أن يكون 6 حروف"),
+    newPassword: z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
   }),
 });
