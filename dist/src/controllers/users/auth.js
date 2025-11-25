@@ -24,9 +24,9 @@ const signup = async (req, res) => {
         .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.email, data.email), (0, drizzle_orm_1.eq)(schema_1.users.phoneNumber, data.phoneNumber)));
     if (existing) {
         if (existing.email === data.email)
-            throw new Errors_1.UniqueConstrainError("Email", "User already signup with this email");
+            throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
         if (existing.phoneNumber === data.phoneNumber)
-            throw new Errors_1.UniqueConstrainError("Phone Number", "User already signup with this phone number");
+            throw new Errors_1.UniqueConstrainError("Phone Number", "رقم الجوال مستخدم بالفعل");
     }
     const hashedPassword = await bcrypt_1.default.hash(data.password, 10);
     const userId = (0, uuid_1.v4)();
@@ -63,7 +63,7 @@ const signup = async (req, res) => {
     }
     await db_1.db.insert(schema_1.users).values(newUse);
     (0, response_1.SuccessResponse)(res, {
-        message: "User Signup successfully get verification code from gmail",
+        message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
         userId: userId,
     }, 201);
 };
@@ -84,7 +84,7 @@ const verifyEmail = async (req, res) => {
     await db_1.db
         .delete(schema_1.emailVerifications)
         .where((0, drizzle_orm_1.eq)(schema_1.emailVerifications.userId, user.id));
-    res.json({ message: "Email verified successfully" });
+    res.json({ message: "تم التحقق من البريد الالكتروني" });
 };
 exports.verifyEmail = verifyEmail;
 const login = async (req, res) => {
@@ -95,24 +95,24 @@ const login = async (req, res) => {
         where: (0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.email, emailOrCardId), (0, drizzle_orm_1.eq)(schema_1.users.cardId, emailOrCardId)),
     });
     if (!user) {
-        throw new Errors_1.UnauthorizedError("Invalid email/card ID or password");
+        throw new Errors_1.UnauthorizedError("الحساب غير موجود");
     }
     const isMatch = await bcrypt_1.default.compare(password, user.hashedPassword);
     if (!isMatch) {
         throw new Errors_1.UnauthorizedError("Invalid email/card ID or password");
     }
     if (user.status !== "approved") {
-        throw new Errors_1.ForbiddenError("Your account is not approved yet. Please wait for approval.");
+        throw new Errors_1.ForbiddenError("الحساب غير موافق على التسجيل. يرجى الانتظار حتى يتم الموافقة عليه");
     }
     if (!user.isVerified) {
-        throw new Errors_1.ForbiddenError("Verify your email first");
+        throw new Errors_1.ForbiddenError("قم بتحقق من البريد الالكتروني");
     }
     const token = (0, auth_1.generateToken)({
         id: user.id,
         name: user.name,
         role: user.role === "member" ? "approved_member_user" : "approved_guest_user",
     });
-    (0, response_1.SuccessResponse)(res, { message: "Login successful", token }, 200);
+    (0, response_1.SuccessResponse)(res, { message: "تم تسجيل الدخول بنجاح ", token }, 200);
 };
 exports.login = login;
 const getFcmToken = async (req, res) => {
@@ -128,7 +128,7 @@ const sendResetCode = async (req, res) => {
     if (!user)
         throw new Errors_1.NotFound("User not found");
     if (!user.isVerified || user.status !== "approved")
-        throw new BadRequest_1.BadRequest("User is not verified or approved");
+        throw new BadRequest_1.BadRequest("الحساب غير مفعل او لم يتم التحقق من البريد الالكتروني");
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     await db_1.db
         .delete(schema_1.emailVerifications)
@@ -137,7 +137,7 @@ const sendResetCode = async (req, res) => {
         .insert(schema_1.emailVerifications)
         .values({ code: code, createdAt: new Date(), userId: user.id });
     await (0, sendEmails_1.sendEmail)(email, "Password Reset Code", `Your reset code is: ${code}\nIt will expire in 2 hours.`);
-    (0, response_1.SuccessResponse)(res, { message: "Reset code sent to your email" }, 200);
+    (0, response_1.SuccessResponse)(res, { message: "الكود المرسل للبريد الالكتروني" }, 200);
 };
 exports.sendResetCode = sendResetCode;
 const verifyCode = async (req, res) => {
@@ -148,9 +148,9 @@ const verifyCode = async (req, res) => {
         .from(schema_1.emailVerifications)
         .where((0, drizzle_orm_1.eq)(schema_1.emailVerifications.userId, user.id));
     if (!user || rowcode.code !== code) {
-        throw new BadRequest_1.BadRequest("Invalid email or reset code");
+        throw new BadRequest_1.BadRequest("الكود غير صحيح");
     }
-    (0, response_1.SuccessResponse)(res, { message: "Code verified successfully" }, 200);
+    (0, response_1.SuccessResponse)(res, { message: "تم التحقق من البريد الالكتروني" }, 200);
 };
 exports.verifyCode = verifyCode;
 const resetPassword = async (req, res) => {
@@ -172,6 +172,6 @@ const resetPassword = async (req, res) => {
     await db_1.db
         .delete(schema_1.emailVerifications)
         .where((0, drizzle_orm_1.eq)(schema_1.emailVerifications.userId, user.id));
-    (0, response_1.SuccessResponse)(res, { message: "Password reset successfully" }, 200);
+    (0, response_1.SuccessResponse)(res, { message: "تم تغيير كلمة السر بنجاح" }, 200);
 };
 exports.resetPassword = resetPassword;

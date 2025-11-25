@@ -30,12 +30,12 @@ export const signup = async (req: Request, res: Response) => {
     if (existing.email === data.email)
       throw new UniqueConstrainError(
         "Email",
-        "User already signup with this email"
+        "البريد الإلكتروني مستخدم بالفعل"
       );
     if (existing.phoneNumber === data.phoneNumber)
       throw new UniqueConstrainError(
         "Phone Number",
-        "User already signup with this phone number"
+        "رقم الجوال مستخدم بالفعل"
       );
   }
   const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -83,7 +83,7 @@ export const signup = async (req: Request, res: Response) => {
   SuccessResponse(
     res,
     {
-      message: "User Signup successfully get verification code from gmail",
+      message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
       userId: userId,
     },
     201
@@ -111,7 +111,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     .delete(emailVerifications)
     .where(eq(emailVerifications.userId, user.id));
 
-  res.json({ message: "Email verified successfully" });
+  res.json({ message: "تم التحقق من البريد الالكتروني" });
 };
 
 export const login = async (req: Request, res: Response) => {
@@ -124,7 +124,7 @@ export const login = async (req: Request, res: Response) => {
   });
 
   if (!user) {
-    throw new UnauthorizedError("Invalid email/card ID or password");
+    throw new UnauthorizedError("الحساب غير موجود");
   }
 
   const isMatch = await bcrypt.compare(password, user.hashedPassword);
@@ -134,12 +134,12 @@ export const login = async (req: Request, res: Response) => {
 
   if (user.status !== "approved") {
     throw new ForbiddenError(
-      "Your account is not approved yet. Please wait for approval."
+      "الحساب غير موافق على التسجيل. يرجى الانتظار حتى يتم الموافقة عليه"
     );
   }
 
   if (!user.isVerified) {
-    throw new ForbiddenError("Verify your email first");
+    throw new ForbiddenError("قم بتحقق من البريد الالكتروني");
   }
 
   const token = generateToken({
@@ -149,7 +149,7 @@ export const login = async (req: Request, res: Response) => {
       user.role === "member" ? "approved_member_user" : "approved_guest_user",
   });
 
-  SuccessResponse(res, { message: "Login successful", token }, 200);
+  SuccessResponse(res, { message: "تم تسجيل الدخول بنجاح ", token }, 200);
 };
 export const getFcmToken = async (req: Request, res: Response) => {
   const { token } = req.body;
@@ -166,7 +166,7 @@ export const sendResetCode = async (req: Request, res: Response) => {
 
   if (!user) throw new NotFound("User not found");
   if (!user.isVerified || user.status !== "approved")
-    throw new BadRequest("User is not verified or approved");
+    throw new BadRequest("الحساب غير مفعل او لم يتم التحقق من البريد الالكتروني");
   const code = Math.floor(100000 + Math.random() * 900000).toString();
 
   await db
@@ -182,7 +182,7 @@ export const sendResetCode = async (req: Request, res: Response) => {
     `Your reset code is: ${code}\nIt will expire in 2 hours.`
   );
 
-  SuccessResponse(res, { message: "Reset code sent to your email" }, 200);
+  SuccessResponse(res, { message: "الكود المرسل للبريد الالكتروني" }, 200);
 };
 
 export const verifyCode = async (req: Request, res: Response) => {
@@ -193,9 +193,9 @@ export const verifyCode = async (req: Request, res: Response) => {
     .from(emailVerifications)
     .where(eq(emailVerifications.userId, user.id));
   if (!user || rowcode.code !== code) {
-    throw new BadRequest("Invalid email or reset code");
+    throw new BadRequest("الكود غير صحيح");
   }
-  SuccessResponse(res, { message: "Code verified successfully" }, 200);
+  SuccessResponse(res, { message: "تم التحقق من البريد الالكتروني" }, 200);
 };
 
 export const resetPassword = async (req: Request, res: Response) => {
@@ -225,5 +225,5 @@ export const resetPassword = async (req: Request, res: Response) => {
     .delete(emailVerifications)
     .where(eq(emailVerifications.userId, user.id));
 
-  SuccessResponse(res, { message: "Password reset successfully" }, 200);
+  SuccessResponse(res, { message: "تم تغيير كلمة السر بنجاح" }, 200);
 };
