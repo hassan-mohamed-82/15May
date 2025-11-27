@@ -33,7 +33,8 @@ route.post(
 );
 route.post("/forgot-password", validate(sendResetCodeSchema), sendResetCode);
 route.post("/verify-code", validate(checkResetCodeSchema), verifyCode);
+route.post("/resend-verification-code", catchAsync(resendVerificationCode));
+
 route.post("/reset-password", validate(resetPasswordSchema), resetPassword);
 route.post("/fcm-token",authenticated ,catchAsync(getFcmToken));
-route.post("/resend-verification-code", catchAsync(resendVerificationCode));
 export default route;
