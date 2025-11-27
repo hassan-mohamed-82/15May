@@ -103,36 +103,34 @@ export const voteResult = async (req: Request, res: Response) => {
     [voteId, userId]
   );
 
-  let votedItemId = null;
+  let votedItemIds: string[] = [];
 
   if (userVote.length) {
     const userVoteId = userVote[0].id;
 
-    // 2) هات نص الاختيار اللي المستخدم اختاره
-    const [userVoteItem]: any = await pool.query(
-      "SELECT item FROM user_votes_items WHERE user_vote_id = ? LIMIT 1",
+    // 2) هات كل النصوص اللي المستخدم اختارها
+    const [userVoteItems]: any = await pool.query(
+      "SELECT item FROM user_votes_items WHERE user_vote_id = ?",
       [userVoteId]
     );
 
-    if (userVoteItem.length) {
-      const selectedText = userVoteItem[0].item;
+    if (userVoteItems.length) {
+      const selectedTexts = userVoteItems.map((row: any) => row.item);
 
-      // 3) هات الـ item_id الحقيقي من votes_items
-      const [voteItemRow]: any = await pool.query(
-        "SELECT id FROM votes_items WHERE vote_id = ? AND item = ? LIMIT 1",
-        [voteId, selectedText]
+      // 3) هات كل الـ item_ids اللي مطابقة للنصوص
+      const [voteItemRows]: any = await pool.query(
+        `SELECT id FROM votes_items WHERE vote_id = ? AND item IN (?)`,
+        [voteId, selectedTexts]
       );
 
-      if (voteItemRow.length) {
-        votedItemId = voteItemRow[0].id;
-      }
+      votedItemIds = voteItemRows.map((row: any) => row.id);
     }
   }
 
   // 4) أضف isUserVoted لكل item
   const resultsWithFlag = finalResult.map((item: any) => ({
     ...item,
-    isUserVoted: item.item_id === votedItemId,
+    isUserVoted: votedItemIds.includes(item.item_id),
   }));
 
   SuccessResponse(res, { results: resultsWithFlag }, 200);

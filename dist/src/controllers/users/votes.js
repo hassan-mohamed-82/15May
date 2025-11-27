@@ -89,24 +89,22 @@ const voteResult = async (req, res) => {
     }
     // 1) هات user_vote.id للمستخدم
     const [userVote] = await db_1.pool.query("SELECT id FROM user_votes WHERE vote_id = ? AND user_id = ? LIMIT 1", [voteId, userId]);
-    let votedItemId = null;
+    let votedItemIds = [];
     if (userVote.length) {
         const userVoteId = userVote[0].id;
-        // 2) هات نص الاختيار اللي المستخدم اختاره
-        const [userVoteItem] = await db_1.pool.query("SELECT item FROM user_votes_items WHERE user_vote_id = ? LIMIT 1", [userVoteId]);
-        if (userVoteItem.length) {
-            const selectedText = userVoteItem[0].item;
-            // 3) هات الـ item_id الحقيقي من votes_items
-            const [voteItemRow] = await db_1.pool.query("SELECT id FROM votes_items WHERE vote_id = ? AND item = ? LIMIT 1", [voteId, selectedText]);
-            if (voteItemRow.length) {
-                votedItemId = voteItemRow[0].id;
-            }
+        // 2) هات كل النصوص اللي المستخدم اختارها
+        const [userVoteItems] = await db_1.pool.query("SELECT item FROM user_votes_items WHERE user_vote_id = ?", [userVoteId]);
+        if (userVoteItems.length) {
+            const selectedTexts = userVoteItems.map((row) => row.item);
+            // 3) هات كل الـ item_ids اللي مطابقة للنصوص
+            const [voteItemRows] = await db_1.pool.query(`SELECT id FROM votes_items WHERE vote_id = ? AND item IN (?)`, [voteId, selectedTexts]);
+            votedItemIds = voteItemRows.map((row) => row.id);
         }
     }
     // 4) أضف isUserVoted لكل item
     const resultsWithFlag = finalResult.map((item) => ({
         ...item,
-        isUserVoted: item.item_id === votedItemId,
+        isUserVoted: votedItemIds.includes(item.item_id),
     }));
     (0, response_1.SuccessResponse)(res, { results: resultsWithFlag }, 200);
 };
