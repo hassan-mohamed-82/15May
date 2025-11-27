@@ -80,20 +80,33 @@ const submitVote = async (req, res) => {
 exports.submitVote = submitVote;
 const voteResult = async (req, res) => {
     const voteId = req.params.id;
-    const userId = req.user.id; // المفروض عندك middleware بيرجع user
+    const userId = req.user.id;
     // نتائج التصويت
     const [results] = await db_1.pool.query("CALL GetVoteResults2(?)", [voteId]);
     const finalResult = results[0];
     if (!finalResult || finalResult.length === 0) {
         throw new Errors_1.NotFound("No vote results found");
     }
-    // هل اليوزر صوّت قبل كده؟
-    const [userVote] = await db_1.pool.query("SELECT item_id FROM votes WHERE vote_id = ? AND user_id = ? LIMIT 1", [voteId, userId]);
-    const votedItemId = userVote.length ? userVote[0].item_id : null;
-    // إضافة isUserVoted لكل item
+    // 1) هات user_vote.id للمستخدم
+    const [userVote] = await db_1.pool.query("SELECT id FROM user_votes WHERE vote_id = ? AND user_id = ? LIMIT 1", [voteId, userId]);
+    let votedItemId = null;
+    if (userVote.length) {
+        const userVoteId = userVote[0].id;
+        // 2) هات نص الاختيار اللي المستخدم اختاره
+        const [userVoteItem] = await db_1.pool.query("SELECT item FROM user_votes_items WHERE user_vote_id = ? LIMIT 1", [userVoteId]);
+        if (userVoteItem.length) {
+            const selectedText = userVoteItem[0].item;
+            // 3) هات الـ item_id الحقيقي من votes_items
+            const [voteItemRow] = await db_1.pool.query("SELECT id FROM votes_items WHERE vote_id = ? AND item = ? LIMIT 1", [voteId, selectedText]);
+            if (voteItemRow.length) {
+                votedItemId = voteItemRow[0].id;
+            }
+        }
+    }
+    // 4) أضف isUserVoted لكل item
     const resultsWithFlag = finalResult.map((item) => ({
         ...item,
-        isUserVoted: item.item_id === votedItemId
+        isUserVoted: item.item_id === votedItemId,
     }));
     (0, response_1.SuccessResponse)(res, { results: resultsWithFlag }, 200);
 };
