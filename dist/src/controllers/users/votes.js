@@ -92,16 +92,14 @@ const voteResult = async (req, res) => {
     let votedItemIds = [];
     if (userVote.length) {
         const userVoteId = userVote[0].id;
-        // 2) هات كل النصوص اللي المستخدم اختارها
-        const [userVoteItems] = await db_1.pool.query("SELECT item FROM user_votes_items WHERE user_vote_id = ?", [userVoteId]);
-        if (userVoteItems.length) {
-            const selectedTexts = userVoteItems.map((row) => row.item);
-            // 3) هات كل الـ item_ids اللي مطابقة للنصوص
-            const [voteItemRows] = await db_1.pool.query(`SELECT id FROM votes_items WHERE vote_id = ? AND item IN (?)`, [voteId, selectedTexts]);
-            votedItemIds = voteItemRows.map((row) => row.id);
-        }
+        // 2) جلب كل الـ item_ids اللي اختارها المستخدم عن طريق join
+        const [voteItemRows] = await db_1.pool.query(`SELECT vi.id AS item_id
+       FROM votes_items vi
+       JOIN user_votes_items uvi ON uvi.item = vi.item
+       WHERE uvi.user_vote_id = ? AND vi.vote_id = ?`, [userVoteId, voteId]);
+        votedItemIds = voteItemRows.map((row) => row.item_id);
     }
-    // 4) أضف isUserVoted لكل item
+    // 3) أضف isUserVoted لكل item
     const resultsWithFlag = finalResult.map((item) => ({
         ...item,
         isUserVoted: votedItemIds.includes(item.item_id),
