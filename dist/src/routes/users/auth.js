@@ -14,4 +14,5 @@ route.post("/forgot-password", (0, validation_1.validate)(auth_2.sendResetCodeSc
 route.post("/verify-code", (0, validation_1.validate)(auth_2.checkResetCodeSchema), auth_1.verifyCode);
 route.post("/reset-password", (0, validation_1.validate)(auth_2.resetPasswordSchema), auth_1.resetPassword);
 route.post("/fcm-token", authenticated_1.authenticated, (0, catchAsync_1.catchAsync)(auth_1.getFcmToken));
+route.post("/resend-verification-code", (0, catchAsync_1.catchAsync)(auth_1.resendVerificationCode));
 exports.default = route;

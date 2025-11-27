@@ -227,3 +227,46 @@ export const resetPassword = async (req: Request, res: Response) => {
 
   SuccessResponse(res, { message: "تم تغيير كلمة السر بنجاح" }, 200);
 };
+
+
+export const resendVerificationCode = async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  // 1) البحث عن المستخدم عبر الإيميل
+  const user = await db.query.users.findFirst({
+    where: (u, { eq }) => eq(u.email, email),
+  });
+
+  if (!user) {
+    throw new NotFound("الحساب غير موجود");
+  }
+
+  // 2) التأكد إنه لسه مش Verified
+  if (user.isVerified) {
+    throw new BadRequest("تم التحقق من البريد الإلكتروني بالفعل");
+  }
+
+  // 3) احذف كود قديم لو موجود
+  await db.delete(emailVerifications).where(
+    eq(emailVerifications.userId, user.id)
+  );
+
+  // 4) إنشاء كود جديد
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // 5) حفظ الكود الجديد
+  await db.insert(emailVerifications).values({
+    userId: user.id,
+    code,
+    createdAt: new Date(),
+  });
+
+  // 6) إرسال الكود عبر البريد
+  await sendEmail(
+    user.email,
+    "Email Verification",
+    `Your new verification code is ${code}`
+  );
+
+  SuccessResponse(res, { message: "تم إرسال كود جديد للبريد الالكتروني" }, 200);
+};

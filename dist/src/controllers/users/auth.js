@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.verifyCode = exports.sendResetCode = exports.getFcmToken = exports.login = exports.verifyEmail = exports.signup = void 0;
+exports.resendVerificationCode = exports.resetPassword = exports.verifyCode = exports.sendResetCode = exports.getFcmToken = exports.login = exports.verifyEmail = exports.signup = void 0;
 const handleImages_1 = require("../../utils/handleImages");
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
@@ -175,3 +175,31 @@ const resetPassword = async (req, res) => {
     (0, response_1.SuccessResponse)(res, { message: "تم تغيير كلمة السر بنجاح" }, 200);
 };
 exports.resetPassword = resetPassword;
+const resendVerificationCode = async (req, res) => {
+    const { email } = req.body;
+    // 1) البحث عن المستخدم عبر الإيميل
+    const user = await db_1.db.query.users.findFirst({
+        where: (u, { eq }) => eq(u.email, email),
+    });
+    if (!user) {
+        throw new Errors_1.NotFound("الحساب غير موجود");
+    }
+    // 2) التأكد إنه لسه مش Verified
+    if (user.isVerified) {
+        throw new BadRequest_1.BadRequest("تم التحقق من البريد الإلكتروني بالفعل");
+    }
+    // 3) احذف كود قديم لو موجود
+    await db_1.db.delete(schema_1.emailVerifications).where((0, drizzle_orm_1.eq)(schema_1.emailVerifications.userId, user.id));
+    // 4) إنشاء كود جديد
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // 5) حفظ الكود الجديد
+    await db_1.db.insert(schema_1.emailVerifications).values({
+        userId: user.id,
+        code,
+        createdAt: new Date(),
+    });
+    // 6) إرسال الكود عبر البريد
+    await (0, sendEmails_1.sendEmail)(user.email, "Email Verification", `Your new verification code is ${code}`);
+    (0, response_1.SuccessResponse)(res, { message: "تم إرسال كود جديد للبريد الالكتروني" }, 200);
+};
+exports.resendVerificationCode = resendVerificationCode;

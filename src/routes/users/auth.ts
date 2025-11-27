@@ -7,6 +7,7 @@ import {
   sendResetCode,
   resetPassword,
   verifyCode,
+  resendVerificationCode
 } from "../../controllers/users/auth";
 import { catchAsync } from "../../utils/catchAsync";
 import { validate } from "../../middlewares/validation";
@@ -17,6 +18,7 @@ import {
   verifyEmailSchema,
   resetPasswordSchema,
   checkResetCodeSchema,
+
 } from "../../validators/users/auth";
 import { authenticated } from "../../middlewares/authenticated";
 
@@ -33,4 +35,5 @@ route.post("/forgot-password", validate(sendResetCodeSchema), sendResetCode);
 route.post("/verify-code", validate(checkResetCodeSchema), verifyCode);
 route.post("/reset-password", validate(resetPasswordSchema), resetPassword);
 route.post("/fcm-token",authenticated ,catchAsync(getFcmToken));
+route.post("/resend-verification-code", catchAsync(resendVerificationCode));
 export default route;
