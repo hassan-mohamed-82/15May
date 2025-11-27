@@ -80,13 +80,21 @@ const submitVote = async (req, res) => {
 exports.submitVote = submitVote;
 const voteResult = async (req, res) => {
     const voteId = req.params.id;
+    const userId = req.user.id; // المفروض عندك middleware بيرجع user
+    // نتائج التصويت
     const [results] = await db_1.pool.query("CALL GetVoteResults2(?)", [voteId]);
-    const finalResult = results[0]; // CALL returns [[rows], fields]
-    if (!finalResult.length)
-        throw new Errors_1.NotFound("No vote results found");
+    const finalResult = results[0];
     if (!finalResult || finalResult.length === 0) {
         throw new Errors_1.NotFound("No vote results found");
     }
-    (0, response_1.SuccessResponse)(res, { results: finalResult }, 200);
+    // هل اليوزر صوّت قبل كده؟
+    const [userVote] = await db_1.pool.query("SELECT item_id FROM votes WHERE vote_id = ? AND user_id = ? LIMIT 1", [voteId, userId]);
+    const votedItemId = userVote.length ? userVote[0].item_id : null;
+    // إضافة isUserVoted لكل item
+    const resultsWithFlag = finalResult.map((item) => ({
+        ...item,
+        isUserVoted: item.item_id === votedItemId
+    }));
+    (0, response_1.SuccessResponse)(res, { results: resultsWithFlag }, 200);
 };
 exports.voteResult = voteResult;
