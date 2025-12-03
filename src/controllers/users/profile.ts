@@ -30,3 +30,12 @@ export const updateProfile = async (req: Request, res: Response) => {
   await db.update(users).set(data).where(eq(users.id, userID));
   SuccessResponse(res, { message: "Profile updated successfully" }, 200);
 };
+
+export const deleteprofile= async (req: Request, res: Response) => {
+  const userID = req.user!.id;
+  const [user] = await db.select().from(users).where(eq(users.id, userID));
+  if (!user) throw new NotFound("User not found");
+  if (user.imagePath) await deletePhotoFromServer(user.imagePath!);
+  await db.delete(users).where(eq(users.id, userID));
+  SuccessResponse(res, { message: "Profile deleted successfully" }, 200);
+};

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { catchAsync } from "../../utils/catchAsync";
-import { getProfileData, updateProfile } from "../../controllers/admin/profile";
+import { getProfileData, updateProfile} from "../../controllers/admin/profile";
 import { validate } from "../../middlewares/validation";
 import { updateProfileSchema } from "../../validators/admin/profile";
 const router = Router();

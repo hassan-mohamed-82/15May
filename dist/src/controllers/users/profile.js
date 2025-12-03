@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateProfile = exports.getProfile = void 0;
+exports.deleteprofile = exports.updateProfile = exports.getProfile = void 0;
 const db_1 = require("../../models/db");
 const schema_1 = require("../../models/schema");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -29,3 +29,14 @@ const updateProfile = async (req, res) => {
     (0, response_1.SuccessResponse)(res, { message: "Profile updated successfully" }, 200);
 };
 exports.updateProfile = updateProfile;
+const deleteprofile = async (req, res) => {
+    const userID = req.user.id;
+    const [user] = await db_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userID));
+    if (!user)
+        throw new Errors_1.NotFound("User not found");
+    if (user.imagePath)
+        await (0, deleteImage_1.deletePhotoFromServer)(user.imagePath);
+    await db_1.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, userID));
+    (0, response_1.SuccessResponse)(res, { message: "Profile deleted successfully" }, 200);
+};
+exports.deleteprofile = deleteprofile;
