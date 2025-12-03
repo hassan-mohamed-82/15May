@@ -17,6 +17,9 @@ const isBirthdayToday = async (req, res) => {
     if (!user.length) {
         throw new Errors_1.NotFound("User not found");
     }
+    if (!user[0].dateOfBirth) {
+        throw new Errors_1.NotFound("User birthdate not found");
+    }
     const birthdate = new Date(user[0].dateOfBirth);
     const today = new Date();
     const isBirthday = birthdate.getDate() === today.getDate() && birthdate.getMonth() === today.getMonth();

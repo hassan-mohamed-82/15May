@@ -19,6 +19,10 @@ export const isBirthdayToday = async (req: Request, res: Response): Promise<void
     throw new NotFound("User not found");
   }
 
+  if (!user[0].dateOfBirth) {
+    throw new NotFound("User birthdate not found");
+  }
+
   const birthdate = new Date(user[0].dateOfBirth);
   const today = new Date();
 

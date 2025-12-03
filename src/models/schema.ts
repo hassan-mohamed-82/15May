@@ -36,7 +36,7 @@ export const users = mysqlTable("users", {
   purpose: text("purpose"),
   cardId: varchar("cardId", { length: 36 }),
   imagePath: text("image_path"),
-  dateOfBirth: date("date_of_birth").notNull(),
+  dateOfBirth: date("date_of_birth"),
   status: mysqlEnum(userStatusEnum).default("pending").notNull(),
   fcmtoken: varchar("fcmtoken", { length: 255 }),
   isVerified: boolean("is_verified").default(false),

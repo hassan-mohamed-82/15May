@@ -26,7 +26,7 @@ exports.users = (0, mysql_core_1.mysqlTable)("users", {
     purpose: (0, mysql_core_1.text)("purpose"),
     cardId: (0, mysql_core_1.varchar)("cardId", { length: 36 }),
     imagePath: (0, mysql_core_1.text)("image_path"),
-    dateOfBirth: (0, mysql_core_1.date)("date_of_birth").notNull(),
+    dateOfBirth: (0, mysql_core_1.date)("date_of_birth"),
     status: (0, mysql_core_1.mysqlEnum)(exports.userStatusEnum).default("pending").notNull(),
     fcmtoken: (0, mysql_core_1.varchar)("fcmtoken", { length: 255 }),
     isVerified: (0, mysql_core_1.boolean)("is_verified").default(false),

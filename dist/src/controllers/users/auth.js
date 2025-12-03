@@ -18,14 +18,19 @@ const sendEmails_1 = require("../../utils/sendEmails");
 const BadRequest_1 = require("../../Errors/BadRequest");
 const signup = async (req, res) => {
     const data = req.body;
+    // بناء شرط البحث ديناميكياً
+    const conditions = [(0, drizzle_orm_1.eq)(schema_1.users.email, data.email)];
+    if (data.phoneNumber) {
+        conditions.push((0, drizzle_orm_1.eq)(schema_1.users.phoneNumber, data.phoneNumber));
+    }
     const [existing] = await db_1.db
         .select()
         .from(schema_1.users)
-        .where((0, drizzle_orm_1.or)((0, drizzle_orm_1.eq)(schema_1.users.email, data.email), (0, drizzle_orm_1.eq)(schema_1.users.phoneNumber, data.phoneNumber)));
+        .where((0, drizzle_orm_1.or)(...conditions));
     if (existing) {
         if (existing.email === data.email)
-            throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
-        if (existing.phoneNumber === data.phoneNumber)
+            throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
+        if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
             throw new Errors_1.UniqueConstrainError("Phone Number", "رقم الجوال مستخدم بالفعل");
     }
     const hashedPassword = await bcrypt_1.default.hash(data.password, 10);
@@ -35,20 +40,20 @@ const signup = async (req, res) => {
         imagePath = await (0, handleImages_1.saveBase64Image)(data.imageBase64, userId, req, "users");
     }
     const code = (0, crypto_1.randomInt)(100000, 999999).toString();
-    const newUse = {
+    const newUser = {
         id: userId,
         name: data.name,
-        phoneNumber: data.phoneNumber,
+        phoneNumber: data.phoneNumber || null, // ← يقبل null
         role: data.role,
-        cardId: data.cardId,
+        cardId: data.cardId || null,
         email: data.email,
         hashedPassword,
         purpose: data.role === "guest" ? data.purpose : null,
         imagePath,
-        dateOfBirth: new Date(data.dateOfBirth),
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null, // ← يقبل null
         status: "pending",
-        createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000), // Adjusting for timezone
-        updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000), // Adjusting for timezone
+        createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
+        updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
     };
     if (!req.user) {
         await db_1.db.insert(schema_1.emailVerifications).values({
@@ -58,10 +63,10 @@ const signup = async (req, res) => {
         await (0, sendEmails_1.sendEmail)(data.email, "Email Verification", `Your verification code is ${code}`);
     }
     else {
-        newUse.status = "approved";
-        newUse.isVerified = true;
+        newUser.status = "approved";
+        newUser.isVerified = true;
     }
-    await db_1.db.insert(schema_1.users).values(newUse);
+    await db_1.db.insert(schema_1.users).values(newUser);
     (0, response_1.SuccessResponse)(res, {
         message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
         userId: userId,

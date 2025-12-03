@@ -6,11 +6,11 @@ exports.signupSchema = zod_1.z.object({
     body: zod_1.z
         .object({
         name: zod_1.z.string().min(2, "name must be at least 2 characters long"),
-        phoneNumber: zod_1.z.string(),
+        phoneNumber: zod_1.z.string().optional(), // ← أصبح اختياري
         role: zod_1.z.enum(["member", "guest"]),
-        email: zod_1.z.string().email("البريد الإلكتروني غير صالح"),
-        password: zod_1.z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
-        dateOfBirth: zod_1.z.string(),
+        email: zod_1.z.string().email("البريد الإلكتروني غير صالح"),
+        password: zod_1.z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
+        dateOfBirth: zod_1.z.string().optional(), // ← أصبح اختياري
         purpose: zod_1.z.string().optional(),
         cardId: zod_1.z.string().optional(),
         imageBase64: zod_1.z.string().optional(),

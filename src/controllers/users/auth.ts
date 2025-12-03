@@ -20,24 +20,30 @@ import { BadRequest } from "../../Errors/BadRequest";
 export const signup = async (req: Request, res: Response) => {
   const data = req.body;
 
+  // بناء شرط البحث ديناميكياً
+  const conditions = [eq(users.email, data.email)];
+  if (data.phoneNumber) {
+    conditions.push(eq(users.phoneNumber, data.phoneNumber));
+  }
+
   const [existing] = await db
     .select()
     .from(users)
-    .where(
-      or(eq(users.email, data.email), eq(users.phoneNumber, data.phoneNumber))
-    );
+    .where(or(...conditions));
+
   if (existing) {
     if (existing.email === data.email)
       throw new UniqueConstrainError(
         "Email",
-        "البريد الإلكتروني مستخدم بالفعل"
+        "البريد الإلكتروني مستخدم بالفعل"
       );
-    if (existing.phoneNumber === data.phoneNumber)
+    if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
       throw new UniqueConstrainError(
         "Phone Number",
         "رقم الجوال مستخدم بالفعل"
       );
   }
+
   const hashedPassword = await bcrypt.hash(data.password, 10);
   const userId = uuidv4();
 
@@ -46,22 +52,23 @@ export const signup = async (req: Request, res: Response) => {
   if (data.role === "member") {
     imagePath = await saveBase64Image(data.imageBase64!, userId, req, "users");
   }
+
   const code = randomInt(100000, 999999).toString();
 
-  const newUse: any = {
+  const newUser: any = {
     id: userId,
     name: data.name,
-    phoneNumber: data.phoneNumber,
+    phoneNumber: data.phoneNumber || null, // ← يقبل null
     role: data.role,
-    cardId:data.cardId,
+    cardId: data.cardId || null,
     email: data.email,
     hashedPassword,
     purpose: data.role === "guest" ? data.purpose : null,
     imagePath,
-    dateOfBirth: new Date(data.dateOfBirth),
+    dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null, // ← يقبل null
     status: "pending",
-    createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000), // Adjusting for timezone
-    updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000), // Adjusting for timezone
+    createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
+    updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
   };
 
   if (!req.user) {
@@ -75,10 +82,11 @@ export const signup = async (req: Request, res: Response) => {
       `Your verification code is ${code}`
     );
   } else {
-    newUse.status = "approved";
-    newUse.isVerified = true;
+    newUser.status = "approved";
+    newUser.isVerified = true;
   }
-  await db.insert(users).values(newUse);
+
+  await db.insert(users).values(newUser);
 
   SuccessResponse(
     res,
@@ -89,6 +97,7 @@ export const signup = async (req: Request, res: Response) => {
     201
   );
 };
+
 
 export const verifyEmail = async (req: Request, res: Response) => {
   const { userId, code } = req.body;

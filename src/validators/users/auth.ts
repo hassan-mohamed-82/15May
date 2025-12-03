@@ -4,13 +4,13 @@ export const signupSchema = z.object({
   body: z
     .object({
       name: z.string().min(2, "name must be at least 2 characters long"),
-      phoneNumber: z.string(),
+      phoneNumber: z.string().optional(), // ← أصبح اختياري
       role: z.enum(["member", "guest"]),
-      email: z.string().email("البريد الإلكتروني غير صالح"),
-      password: z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
-      dateOfBirth: z.string(),
+      email: z.string().email("البريد الإلكتروني غير صالح"),
+      password: z.string().min(8, "كلمة المرور يجب أن تكون على الأقل 8 حروف"),
+      dateOfBirth: z.string().optional(), // ← أصبح اختياري
       purpose: z.string().optional(),
-      cardId:z.string().optional(),
+      cardId: z.string().optional(),
       imageBase64: z.string().optional(),
     })
     .superRefine((data, ctx) => {
