@@ -18,7 +18,6 @@ const sendEmails_1 = require("../../utils/sendEmails");
 const BadRequest_1 = require("../../Errors/BadRequest");
 const signup = async (req, res) => {
     const data = req.body;
-    // 👈 normalize email
     const email = (data.email || "").trim().toLowerCase();
     if (!email) {
         throw new BadRequest_1.BadRequest("البريد الإلكتروني مطلوب");

@@ -20,7 +20,6 @@ import { BadRequest } from "../../Errors/BadRequest";
 export const signup = async (req: Request, res: Response) => {
   const data = req.body;
 
-  // 👈 normalize email
   const email = (data.email || "").trim().toLowerCase();
   if (!email) {
     throw new BadRequest( "البريد الإلكتروني مطلوب");
