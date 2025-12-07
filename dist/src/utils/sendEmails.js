@@ -1,14 +1,25 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendEmail = void 0;
-const resend_1 = require("resend");
-const resend = new resend_1.Resend(process.env.RESEND_API_KEY);
+const nodemailer_1 = __importDefault(require("nodemailer"));
 const sendEmail = async (to, subject, text) => {
     console.log("== sendEmail called ==");
     console.log("To:", to);
+    const transporter = nodemailer_1.default.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+    });
     try {
-        const { data, error } = await resend.emails.send({
-            from: "15May Club <onboarding@resend.dev>",
+        const info = await transporter.sendMail({
+            from: `"15May Club" <${process.env.EMAIL_USER}>`, // ← هنا التعديل
             to: to,
             subject: subject,
             text: text,
@@ -17,20 +28,13 @@ const sendEmail = async (to, subject, text) => {
         <p style="font-size: 24px; font-weight: bold;">${text}</p>
       </div>`,
         });
-        if (error) {
-            console.error("Resend error:", error);
-            throw new Error(error.message);
-        }
-        console.log("Email sent successfully:", data);
-        return {
-            accepted: [to],
-            rejected: [],
-            response: "OK",
-            messageId: data?.id,
-        };
+        console.log("Email sent - accepted:", info.accepted);
+        console.log("Email sent - rejected:", info.rejected);
+        console.log("Email sent - messageId:", info.messageId);
+        return info;
     }
     catch (err) {
-        console.error("Error sending email:", err.message);
+        console.error("Error:", err.message);
         throw err;
     }
 };

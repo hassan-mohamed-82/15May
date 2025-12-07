@@ -1,18 +1,22 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-export const sendEmail = async (
-  to: string,
-  subject: string,
-  text: string
-) => {
+export const sendEmail = async (to: string, subject: string, text: string) => {
   console.log("== sendEmail called ==");
   console.log("To:", to);
 
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
   try {
-    const { data, error } = await resend.emails.send({
-      from: "15May Club <onboarding@resend.dev>",
+    const info = await transporter.sendMail({
+      from: `"15May Club" <${process.env.EMAIL_USER}>`, // ← هنا التعديل
       to: to,
       subject: subject,
       text: text,
@@ -22,21 +26,13 @@ export const sendEmail = async (
       </div>`,
     });
 
-    if (error) {
-      console.error("Resend error:", error);
-      throw new Error(error.message);
-    }
+    console.log("Email sent - accepted:", info.accepted);
+    console.log("Email sent - rejected:", info.rejected);
+    console.log("Email sent - messageId:", info.messageId);
 
-    console.log("Email sent successfully:", data);
-
-    return {
-      accepted: [to],
-      rejected: [],
-      response: "OK",
-      messageId: data?.id,
-    };
+    return info;
   } catch (err: any) {
-    console.error("Error sending email:", err.message);
+    console.error("Error:", err.message);
     throw err;
   }
 };
