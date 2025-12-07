@@ -7,13 +7,18 @@ exports.sendEmail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const sendEmail = async (to, subject, text) => {
     console.log("== sendEmail called ==");
-    console.log("To:", to);
+    console.log("To:", JSON.stringify(to));
+    console.log("Subject:", subject);
+    console.log("Email user:", process.env.EMAIL_USER);
+    console.log("Email pass:", process.env.EMAIL_PASS ? "Exists" : "Missing");
     const transporter = nodemailer_1.default.createTransport({
         service: "gmail",
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
+        logger: true, // 👈 عشان تشوف لوج ال SMTP
+        debug: true,
     });
     try {
         const info = await transporter.sendMail({
@@ -29,7 +34,11 @@ const sendEmail = async (to, subject, text) => {
         return info;
     }
     catch (err) {
-        console.error("Error sending email:", err);
+        console.error("Error sending email:");
+        console.error("  name:", err.name);
+        console.error("  code:", err.code);
+        console.error("  response:", err.response);
+        console.error("  command:", err.command);
         throw err;
     }
 };

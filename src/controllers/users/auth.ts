@@ -20,8 +20,15 @@ import { BadRequest } from "../../Errors/BadRequest";
 export const signup = async (req: Request, res: Response) => {
   const data = req.body;
 
+  // 👈 normalize email
+  const email = (data.email || "").trim().toLowerCase();
+  if (!email) {
+    throw new BadRequest( "البريد الإلكتروني مطلوب");
+  }
+  data.email = email;
+
   // بناء شرط البحث ديناميكياً
-  const conditions = [eq(users.email, data.email)];
+  const conditions = [eq(users.email, email)];
   if (data.phoneNumber) {
     conditions.push(eq(users.phoneNumber, data.phoneNumber));
   }
@@ -31,14 +38,13 @@ export const signup = async (req: Request, res: Response) => {
     .from(users)
     .where(or(...conditions));
 
-  // 👇 أول حاجة نتعامل مع حالة إن اليوزر موجود
+  // 👇 حالة إن اليوزر موجود
   if (existing) {
-    // لو اليوزر مفعّل فعلاً → نفس الرسائل القديمة
     const isVerified =
       existing.isVerified === true || existing.status === "approved";
 
     if (isVerified) {
-      if (existing.email === data.email)
+      if (existing.email === email)
         throw new UniqueConstrainError(
           "Email",
           "البريد الإلكتروني مستخدم بالفعل"
@@ -50,29 +56,25 @@ export const signup = async (req: Request, res: Response) => {
         );
     }
 
-    // 👈 هنا الحالة اللي انت عايزها:
-    // اليوزر موجود لكن مش verified → ابعتله كود جديد وما تنشئش يوزر جديد
     const code = randomInt(100000, 999999).toString();
 
-    // امسح أي كود قديم لنفس اليوزر (اختياري لكن أفضل)
     await db
       .delete(emailVerifications)
       .where(eq(emailVerifications.userId, existing.id));
 
-    // خزّن الكود الجديد
     await db.insert(emailVerifications).values({
       userId: existing.id,
       code,
     });
 
-    // ابعت الإيميل
+    console.log("Signup: sending OTP to EXISTING user:", existing.email);
+
     await sendEmail(
-      existing.email,
+      existing.email.trim().toLowerCase(),
       "Email Verification",
       `Your verification code is ${code}`
     );
 
-    // رجّع ريسبونس مناسب
     return SuccessResponse(
       res,
       {
@@ -84,8 +86,7 @@ export const signup = async (req: Request, res: Response) => {
     );
   }
 
-  // 👇 لو مفيش يوزر قديم، نكمّل بإنشاء يوزر جديد زي ما عندك
-
+  // 👇 لو مفيش يوزر قديم → إنشاء يوزر جديد
   const hashedPassword = await bcrypt.hash(data.password, 10);
   const userId = uuidv4();
 
@@ -103,7 +104,7 @@ export const signup = async (req: Request, res: Response) => {
     phoneNumber: data.phoneNumber || null,
     role: data.role,
     cardId: data.cardId || null,
-    email: data.email,
+    email,
     hashedPassword,
     purpose: data.role === "guest" ? data.purpose : null,
     imagePath,
@@ -115,11 +116,14 @@ export const signup = async (req: Request, res: Response) => {
 
   if (!req.user) {
     await db.insert(emailVerifications).values({
-      userId: userId,
+      userId,
       code,
     });
+
+    console.log("Signup: sending OTP to NEW user:", email);
+
     await sendEmail(
-      data.email,
+      email,
       "Email Verification",
       `Your verification code is ${code}`
     );
@@ -130,15 +134,16 @@ export const signup = async (req: Request, res: Response) => {
 
   await db.insert(users).values(newUser);
 
-  SuccessResponse(
+  return SuccessResponse(
     res,
     {
       message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
-      userId: userId,
+      userId,
     },
     201
   );
 };
+
 
 
 export const verifyEmail = async (req: Request, res: Response) => {
