@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-"build": "tsc ",
+    "build": "tsc ",
     "start": "node dist/src/server.js",
     "generate-db": "npx drizzle-kit generate",
     "migrate-db": "npx drizzle-kit push"
@@ -33,6 +33,7 @@
     "mysql2": "^3.14.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.5",
+    "resend": "^6.5.2",
     "uuid": "^11.1.0",
     "zod": "^3.25.74"
   },
