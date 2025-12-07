@@ -27,12 +27,37 @@ const signup = async (req, res) => {
         .select()
         .from(schema_1.users)
         .where((0, drizzle_orm_1.or)(...conditions));
+    // 👇 أول حاجة نتعامل مع حالة إن اليوزر موجود
     if (existing) {
-        if (existing.email === data.email)
-            throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
-        if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
-            throw new Errors_1.UniqueConstrainError("Phone Number", "رقم الجوال مستخدم بالفعل");
+        // لو اليوزر مفعّل فعلاً → نفس الرسائل القديمة
+        const isVerified = existing.isVerified === true || existing.status === "approved";
+        if (isVerified) {
+            if (existing.email === data.email)
+                throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
+            if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
+                throw new Errors_1.UniqueConstrainError("Phone Number", "رقم الجوال مستخدم بالفعل");
+        }
+        // 👈 هنا الحالة اللي انت عايزها:
+        // اليوزر موجود لكن مش verified → ابعتله كود جديد وما تنشئش يوزر جديد
+        const code = (0, crypto_1.randomInt)(100000, 999999).toString();
+        // امسح أي كود قديم لنفس اليوزر (اختياري لكن أفضل)
+        await db_1.db
+            .delete(schema_1.emailVerifications)
+            .where((0, drizzle_orm_1.eq)(schema_1.emailVerifications.userId, existing.id));
+        // خزّن الكود الجديد
+        await db_1.db.insert(schema_1.emailVerifications).values({
+            userId: existing.id,
+            code,
+        });
+        // ابعت الإيميل
+        await (0, sendEmails_1.sendEmail)(existing.email, "Email Verification", `Your verification code is ${code}`);
+        // رجّع ريسبونس مناسب
+        return (0, response_1.SuccessResponse)(res, {
+            message: "هذا الحساب موجود لكنه غير مفعّل. تم إرسال كود تحقق جديد إلى بريدك الإلكتروني.",
+            userId: existing.id,
+        }, 200);
     }
+    // 👇 لو مفيش يوزر قديم، نكمّل بإنشاء يوزر جديد زي ما عندك
     const hashedPassword = await bcrypt_1.default.hash(data.password, 10);
     const userId = (0, uuid_1.v4)();
     let imagePath = null;
@@ -43,14 +68,14 @@ const signup = async (req, res) => {
     const newUser = {
         id: userId,
         name: data.name,
-        phoneNumber: data.phoneNumber || null, // ← يقبل null
+        phoneNumber: data.phoneNumber || null,
         role: data.role,
         cardId: data.cardId || null,
         email: data.email,
         hashedPassword,
         purpose: data.role === "guest" ? data.purpose : null,
         imagePath,
-        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null, // ← يقبل null
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
         status: "pending",
         createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
         updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),

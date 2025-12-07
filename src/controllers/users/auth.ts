@@ -31,18 +31,60 @@ export const signup = async (req: Request, res: Response) => {
     .from(users)
     .where(or(...conditions));
 
+  // 👇 أول حاجة نتعامل مع حالة إن اليوزر موجود
   if (existing) {
-    if (existing.email === data.email)
-      throw new UniqueConstrainError(
-        "Email",
-        "البريد الإلكتروني مستخدم بالفعل"
-      );
-    if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
-      throw new UniqueConstrainError(
-        "Phone Number",
-        "رقم الجوال مستخدم بالفعل"
-      );
+    // لو اليوزر مفعّل فعلاً → نفس الرسائل القديمة
+    const isVerified =
+      existing.isVerified === true || existing.status === "approved";
+
+    if (isVerified) {
+      if (existing.email === data.email)
+        throw new UniqueConstrainError(
+          "Email",
+          "البريد الإلكتروني مستخدم بالفعل"
+        );
+      if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
+        throw new UniqueConstrainError(
+          "Phone Number",
+          "رقم الجوال مستخدم بالفعل"
+        );
+    }
+
+    // 👈 هنا الحالة اللي انت عايزها:
+    // اليوزر موجود لكن مش verified → ابعتله كود جديد وما تنشئش يوزر جديد
+    const code = randomInt(100000, 999999).toString();
+
+    // امسح أي كود قديم لنفس اليوزر (اختياري لكن أفضل)
+    await db
+      .delete(emailVerifications)
+      .where(eq(emailVerifications.userId, existing.id));
+
+    // خزّن الكود الجديد
+    await db.insert(emailVerifications).values({
+      userId: existing.id,
+      code,
+    });
+
+    // ابعت الإيميل
+    await sendEmail(
+      existing.email,
+      "Email Verification",
+      `Your verification code is ${code}`
+    );
+
+    // رجّع ريسبونس مناسب
+    return SuccessResponse(
+      res,
+      {
+        message:
+          "هذا الحساب موجود لكنه غير مفعّل. تم إرسال كود تحقق جديد إلى بريدك الإلكتروني.",
+        userId: existing.id,
+      },
+      200
+    );
   }
+
+  // 👇 لو مفيش يوزر قديم، نكمّل بإنشاء يوزر جديد زي ما عندك
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
   const userId = uuidv4();
@@ -58,14 +100,14 @@ export const signup = async (req: Request, res: Response) => {
   const newUser: any = {
     id: userId,
     name: data.name,
-    phoneNumber: data.phoneNumber || null, // ← يقبل null
+    phoneNumber: data.phoneNumber || null,
     role: data.role,
     cardId: data.cardId || null,
     email: data.email,
     hashedPassword,
     purpose: data.role === "guest" ? data.purpose : null,
     imagePath,
-    dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null, // ← يقبل null
+    dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
     status: "pending",
     createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
     updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
