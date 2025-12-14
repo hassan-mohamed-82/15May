@@ -22,7 +22,7 @@ export const signup = async (req: Request, res: Response) => {
 
   const email = (data.email || "").trim().toLowerCase();
   if (!email) {
-    throw new BadRequest( "البريد الإلكتروني مطلوب");
+    throw new BadRequest("البريد الإلكتروني مطلوب");
   }
   data.email = email;
 
@@ -37,55 +37,21 @@ export const signup = async (req: Request, res: Response) => {
     .from(users)
     .where(or(...conditions));
 
-  // 👇 حالة إن اليوزر موجود
+  // لو اليوزر موجود
   if (existing) {
-    const isVerified =
-      existing.isVerified === true || existing.status === "approved";
-
-    if (isVerified) {
-      if (existing.email === email)
-        throw new UniqueConstrainError(
-          "Email",
-          "البريد الإلكتروني مستخدم بالفعل"
-        );
-      if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
-        throw new UniqueConstrainError(
-          "Phone Number",
-          "رقم الجوال مستخدم بالفعل"
-        );
-    }
-
-    const code = randomInt(100000, 999999).toString();
-
-    await db
-      .delete(emailVerifications)
-      .where(eq(emailVerifications.userId, existing.id));
-
-    await db.insert(emailVerifications).values({
-      userId: existing.id,
-      code,
-    });
-
-    console.log("Signup: sending OTP to EXISTING user:", existing.email);
-
-    await sendEmail(
-      existing.email.trim().toLowerCase(),
-      "Email Verification",
-      `Your verification code is ${code}`
-    );
-
-    return SuccessResponse(
-      res,
-      {
-        message:
-          "هذا الحساب موجود لكنه غير مفعّل. تم إرسال كود تحقق جديد إلى بريدك الإلكتروني.",
-        userId: existing.id,
-      },
-      200
-    );
+    if (existing.email === email)
+      throw new UniqueConstrainError(
+        "Email",
+        "البريد الإلكتروني مستخدم بالفعل"
+      );
+    if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
+      throw new UniqueConstrainError(
+        "Phone Number",
+        "رقم الجوال مستخدم بالفعل"
+      );
   }
 
-  // 👇 لو مفيش يوزر قديم → إنشاء يوزر جديد
+  // إنشاء يوزر جديد
   const hashedPassword = await bcrypt.hash(data.password, 10);
   const userId = uuidv4();
 
@@ -94,8 +60,6 @@ export const signup = async (req: Request, res: Response) => {
   if (data.role === "member") {
     imagePath = await saveBase64Image(data.imageBase64!, userId, req, "users");
   }
-
-  const code = randomInt(100000, 999999).toString();
 
   const newUser: any = {
     id: userId,
@@ -108,41 +72,23 @@ export const signup = async (req: Request, res: Response) => {
     purpose: data.role === "guest" ? data.purpose : null,
     imagePath,
     dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-    status: "pending",
+    status: "approved",
+    isVerified: true,
     createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
     updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
   };
-
-  if (!req.user) {
-    await db.insert(emailVerifications).values({
-      userId,
-      code,
-    });
-
-    console.log("Signup: sending OTP to NEW user:", email);
-
-    await sendEmail(
-      email,
-      "Email Verification",
-      `Your verification code is ${code}`
-    );
-  } else {
-    newUser.status = "approved";
-    newUser.isVerified = true;
-  }
 
   await db.insert(users).values(newUser);
 
   return SuccessResponse(
     res,
     {
-      message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
+      message: "تم التسجيل بنجاح",
       userId,
     },
     201
   );
 };
-
 
 
 export const verifyEmail = async (req: Request, res: Response) => {

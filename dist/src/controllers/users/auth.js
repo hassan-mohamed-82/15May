@@ -11,7 +11,6 @@ const drizzle_orm_1 = require("drizzle-orm");
 const uuid_1 = require("uuid");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const response_1 = require("../../utils/response");
-const crypto_1 = require("crypto");
 const Errors_1 = require("../../Errors");
 const auth_1 = require("../../utils/auth");
 const sendEmails_1 = require("../../utils/sendEmails");
@@ -32,38 +31,20 @@ const signup = async (req, res) => {
         .select()
         .from(schema_1.users)
         .where((0, drizzle_orm_1.or)(...conditions));
-    // 👇 حالة إن اليوزر موجود
+    // لو اليوزر موجود
     if (existing) {
-        const isVerified = existing.isVerified === true || existing.status === "approved";
-        if (isVerified) {
-            if (existing.email === email)
-                throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
-            if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
-                throw new Errors_1.UniqueConstrainError("Phone Number", "رقم الجوال مستخدم بالفعل");
-        }
-        const code = (0, crypto_1.randomInt)(100000, 999999).toString();
-        await db_1.db
-            .delete(schema_1.emailVerifications)
-            .where((0, drizzle_orm_1.eq)(schema_1.emailVerifications.userId, existing.id));
-        await db_1.db.insert(schema_1.emailVerifications).values({
-            userId: existing.id,
-            code,
-        });
-        console.log("Signup: sending OTP to EXISTING user:", existing.email);
-        await (0, sendEmails_1.sendEmail)(existing.email.trim().toLowerCase(), "Email Verification", `Your verification code is ${code}`);
-        return (0, response_1.SuccessResponse)(res, {
-            message: "هذا الحساب موجود لكنه غير مفعّل. تم إرسال كود تحقق جديد إلى بريدك الإلكتروني.",
-            userId: existing.id,
-        }, 200);
+        if (existing.email === email)
+            throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
+        if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
+            throw new Errors_1.UniqueConstrainError("Phone Number", "رقم الجوال مستخدم بالفعل");
     }
-    // 👇 لو مفيش يوزر قديم → إنشاء يوزر جديد
+    // إنشاء يوزر جديد
     const hashedPassword = await bcrypt_1.default.hash(data.password, 10);
     const userId = (0, uuid_1.v4)();
     let imagePath = null;
     if (data.role === "member") {
         imagePath = await (0, handleImages_1.saveBase64Image)(data.imageBase64, userId, req, "users");
     }
-    const code = (0, crypto_1.randomInt)(100000, 999999).toString();
     const newUser = {
         id: userId,
         name: data.name,
@@ -75,25 +56,14 @@ const signup = async (req, res) => {
         purpose: data.role === "guest" ? data.purpose : null,
         imagePath,
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-        status: "pending",
+        status: "approved",
+        isVerified: true,
         createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
         updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
     };
-    if (!req.user) {
-        await db_1.db.insert(schema_1.emailVerifications).values({
-            userId,
-            code,
-        });
-        console.log("Signup: sending OTP to NEW user:", email);
-        await (0, sendEmails_1.sendEmail)(email, "Email Verification", `Your verification code is ${code}`);
-    }
-    else {
-        newUser.status = "approved";
-        newUser.isVerified = true;
-    }
     await db_1.db.insert(schema_1.users).values(newUser);
     return (0, response_1.SuccessResponse)(res, {
-        message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
+        message: "تم التسجيل بنجاح",
         userId,
     }, 201);
 };
