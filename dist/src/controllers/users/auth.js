@@ -35,12 +35,34 @@ const signup = async (req, res) => {
     // 👇 حالة إن اليوزر موجود
     if (existing) {
         const isVerified = existing.isVerified === true || existing.status === "approved";
+        // لو مفعّل → ارمي error
         if (isVerified) {
             if (existing.email === email)
                 throw new Errors_1.UniqueConstrainError("Email", "البريد الإلكتروني مستخدم بالفعل");
             if (data.phoneNumber && existing.phoneNumber === data.phoneNumber)
                 throw new Errors_1.UniqueConstrainError("Phone Number", "رقم الجوال مستخدم بالفعل");
         }
+        // ✅ لو مش مفعّل → حدّث بياناته بالبيانات الجديدة
+        const hashedPassword = await bcrypt_1.default.hash(data.password, 10);
+        let imagePath = existing.imagePath;
+        if (data.role === "member" && data.imageBase64) {
+            imagePath = await (0, handleImages_1.saveBase64Image)(data.imageBase64, existing.id, req, "users");
+        }
+        await db_1.db
+            .update(schema_1.users)
+            .set({
+            name: data.name,
+            phoneNumber: data.phoneNumber || null,
+            role: data.role,
+            cardId: data.cardId || null,
+            hashedPassword,
+            purpose: data.role === "guest" ? data.purpose : null,
+            imagePath,
+            dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+            updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
+        })
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, existing.id));
+        // امسح أي كود قديم وابعت كود جديد
         const code = (0, crypto_1.randomInt)(100000, 999999).toString();
         await db_1.db
             .delete(schema_1.emailVerifications)
@@ -49,10 +71,10 @@ const signup = async (req, res) => {
             userId: existing.id,
             code,
         });
-        console.log("Signup: sending OTP to EXISTING user:", existing.email);
+        console.log("Signup: sending OTP to EXISTING unverified user:", existing.email);
         await (0, sendEmails_1.sendEmail)(existing.email.trim().toLowerCase(), "Email Verification", `Your verification code is ${code}`);
         return (0, response_1.SuccessResponse)(res, {
-            message: "هذا الحساب موجود لكنه غير مفعّل. تم إرسال كود تحقق جديد إلى بريدك الإلكتروني.",
+            message: "هذا الحساب موجود لكنه غير مفعّل. تم تحديث بياناتك وإرسال كود تحقق جديد إلى بريدك الإلكتروني.",
             userId: existing.id,
         }, 200);
     }
@@ -60,7 +82,7 @@ const signup = async (req, res) => {
     const hashedPassword = await bcrypt_1.default.hash(data.password, 10);
     const userId = (0, uuid_1.v4)();
     let imagePath = null;
-    if (data.role === "member") {
+    if (data.role === "member" && data.imageBase64) {
         imagePath = await (0, handleImages_1.saveBase64Image)(data.imageBase64, userId, req, "users");
     }
     const code = (0, crypto_1.randomInt)(100000, 999999).toString();
@@ -76,9 +98,17 @@ const signup = async (req, res) => {
         imagePath,
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
         status: "pending",
+        isVerified: false,
         createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
         updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
     };
+    // لو في admin عامل login → فعّل اليوزر تلقائي
+    if (req.user) {
+        newUser.status = "approved";
+        newUser.isVerified = true;
+    }
+    await db_1.db.insert(schema_1.users).values(newUser);
+    // لو مفيش admin → ابعت كود التحقق
     if (!req.user) {
         await db_1.db.insert(schema_1.emailVerifications).values({
             userId,
@@ -87,13 +117,10 @@ const signup = async (req, res) => {
         console.log("Signup: sending OTP to NEW user:", email);
         await (0, sendEmails_1.sendEmail)(email, "Email Verification", `Your verification code is ${code}`);
     }
-    else {
-        newUser.status = "approved";
-        newUser.isVerified = true;
-    }
-    await db_1.db.insert(schema_1.users).values(newUser);
     return (0, response_1.SuccessResponse)(res, {
-        message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
+        message: req.user
+            ? "تم التسجيل والتفعيل بنجاح"
+            : "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
         userId,
     }, 201);
 };

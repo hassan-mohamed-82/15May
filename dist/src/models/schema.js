@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.banners = exports.members = exports.userNotifications = exports.notifications = exports.sliderImages = exports.sliders = exports.popUpsPages = exports.popUpsImages = exports.appPages = exports.userCompetition = exports.competitionsImages = exports.competitions = exports.complaints = exports.complaintsCategory = exports.reacts = exports.postsImages = exports.posts = exports.postsCategory = exports.userVotesItems = exports.userVotes = exports.votesItems = exports.votes = exports.emailVerifications = exports.users = exports.admins = exports.popUpsStatus = exports.userRoles = exports.userStatusEnum = void 0;
+exports.disappered = exports.banners = exports.members = exports.userNotifications = exports.notifications = exports.sliderImages = exports.sliders = exports.popUpsPages = exports.popUpsImages = exports.appPages = exports.userCompetition = exports.competitionsImages = exports.competitions = exports.complaints = exports.complaintsCategory = exports.reacts = exports.postsImages = exports.posts = exports.postsCategory = exports.userVotesItems = exports.userVotes = exports.votesItems = exports.votes = exports.emailVerifications = exports.users = exports.admins = exports.popUpsStatus = exports.userRoles = exports.userStatusEnum = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 // ENUMS
 exports.userStatusEnum = ["pending", "approved", "rejected"];
@@ -217,5 +217,10 @@ exports.members = (0, mysql_core_1.mysqlTable)("members", {
 exports.banners = (0, mysql_core_1.mysqlTable)("banners", {
     id: (0, mysql_core_1.varchar)("id", { length: 36 }).primaryKey(),
     imagePath: (0, mysql_core_1.text)("image_path").notNull(),
+    createdAt: (0, mysql_core_1.timestamp)("created_at").defaultNow(),
+});
+exports.disappered = (0, mysql_core_1.mysqlTable)("disappered", {
+    id: (0, mysql_core_1.varchar)("id", { length: 36 }).primaryKey(),
+    status: (0, mysql_core_1.boolean)("status").default(true),
     createdAt: (0, mysql_core_1.timestamp)("created_at").defaultNow(),
 });

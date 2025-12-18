@@ -22,7 +22,7 @@ export const signup = async (req: Request, res: Response) => {
 
   const email = (data.email || "").trim().toLowerCase();
   if (!email) {
-    throw new BadRequest( "البريد الإلكتروني مطلوب");
+    throw new BadRequest("البريد الإلكتروني مطلوب");
   }
   data.email = email;
 
@@ -42,6 +42,7 @@ export const signup = async (req: Request, res: Response) => {
     const isVerified =
       existing.isVerified === true || existing.status === "approved";
 
+    // لو مفعّل → ارمي error
     if (isVerified) {
       if (existing.email === email)
         throw new UniqueConstrainError(
@@ -55,6 +56,30 @@ export const signup = async (req: Request, res: Response) => {
         );
     }
 
+    // ✅ لو مش مفعّل → حدّث بياناته بالبيانات الجديدة
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    let imagePath: string | null = existing.imagePath;
+    if (data.role === "member" && data.imageBase64) {
+      imagePath = await saveBase64Image(data.imageBase64, existing.id, req, "users");
+    }
+
+    await db
+      .update(users)
+      .set({
+        name: data.name,
+        phoneNumber: data.phoneNumber || null,
+        role: data.role,
+        cardId: data.cardId || null,
+        hashedPassword,
+        purpose: data.role === "guest" ? data.purpose : null,
+        imagePath,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+        updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
+      })
+      .where(eq(users.id, existing.id));
+
+    // امسح أي كود قديم وابعت كود جديد
     const code = randomInt(100000, 999999).toString();
 
     await db
@@ -66,7 +91,7 @@ export const signup = async (req: Request, res: Response) => {
       code,
     });
 
-    console.log("Signup: sending OTP to EXISTING user:", existing.email);
+    console.log("Signup: sending OTP to EXISTING unverified user:", existing.email);
 
     await sendEmail(
       existing.email.trim().toLowerCase(),
@@ -78,7 +103,7 @@ export const signup = async (req: Request, res: Response) => {
       res,
       {
         message:
-          "هذا الحساب موجود لكنه غير مفعّل. تم إرسال كود تحقق جديد إلى بريدك الإلكتروني.",
+          "هذا الحساب موجود لكنه غير مفعّل. تم تحديث بياناتك وإرسال كود تحقق جديد إلى بريدك الإلكتروني.",
         userId: existing.id,
       },
       200
@@ -91,8 +116,8 @@ export const signup = async (req: Request, res: Response) => {
 
   let imagePath: string | null = null;
 
-  if (data.role === "member") {
-    imagePath = await saveBase64Image(data.imageBase64!, userId, req, "users");
+  if (data.role === "member" && data.imageBase64) {
+    imagePath = await saveBase64Image(data.imageBase64, userId, req, "users");
   }
 
   const code = randomInt(100000, 999999).toString();
@@ -109,10 +134,20 @@ export const signup = async (req: Request, res: Response) => {
     imagePath,
     dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
     status: "pending",
+    isVerified: false,
     createdAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
     updatedAt: new Date(new Date().getTime() + 3 * 60 * 60 * 1000),
   };
 
+  // لو في admin عامل login → فعّل اليوزر تلقائي
+  if (req.user) {
+    newUser.status = "approved";
+    newUser.isVerified = true;
+  }
+
+  await db.insert(users).values(newUser);
+
+  // لو مفيش admin → ابعت كود التحقق
   if (!req.user) {
     await db.insert(emailVerifications).values({
       userId,
@@ -126,17 +161,14 @@ export const signup = async (req: Request, res: Response) => {
       "Email Verification",
       `Your verification code is ${code}`
     );
-  } else {
-    newUser.status = "approved";
-    newUser.isVerified = true;
   }
-
-  await db.insert(users).values(newUser);
 
   return SuccessResponse(
     res,
     {
-      message: "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
+      message: req.user
+        ? "تم التسجيل والتفعيل بنجاح"
+        : "تم التسجيل بنجاح من فضلك قم بتحقق من البريد الالكتروني",
       userId,
     },
     201

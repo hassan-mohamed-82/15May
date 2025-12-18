@@ -260,3 +260,9 @@ export const banners = mysqlTable("banners", {
   imagePath: text("image_path").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const disappered=mysqlTable("disappered",{
+  id:varchar("id", { length: 36 }).primaryKey(),
+  status: boolean("status").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+})
